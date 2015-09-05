@@ -6,12 +6,19 @@ Pigeon是一个分布式服务通信框架（RPC），在大众点评内部广�
 ### 主要特色
 
 除了支持spring schema等配置方式，也支持代码annotation方式发布服务、引用远程服务，并提供原生api接口的用法。
+
 支持http协议，方便非java应用调用pigeon的服务。
+
 序列化方式除了hessian，还支持fst、protostuff。
+
 提供了服务器单机控制台pigeon-console，包含单机服务测试工具。
+
 创新的客户端路由策略，提供服务预热功能，解决线上流量大的service重启时大量超时的问题。
+
 记录每个请求的对象大小、返回对象大小等监控信息。
+
 服务端可对方法设置单独的线程池进行服务隔离，可配置客户端应用的最大并发数进行限流。
+
 
 ### 依赖
 
@@ -27,7 +34,7 @@ pom依赖定义：
 
 pigeon在运行时可能会依赖以下jar包，如果有必要，需要应用自行加上以下jar(版本建议高于或等于以下基础版本)：
 
-		<!-- 通信框架依赖，下面的cat依赖是可选的，如果不依赖cat则默认不会有监控功能，如果想接入大众点评的监控框架cat（已经开源），需增加以下依赖（pigeon-monitor-cat代码在https://github.com/wu-xiang/pigeon-monitor-cat） -->
+		<!-- 监控框架依赖，下面的cat依赖是可选的，如果不依赖cat则默认不会有监控功能，如果想接入大众点评的监控框架cat（已经开源），需增加以下依赖（pigeon-monitor-cat代码在https://github.com/wu-xiang/pigeon-monitor-cat） -->
 		<dependency>
 		<groupId>com.dianping</groupId>
 		<artifactId>pigeon-monitor-cat</artifactId>
@@ -65,25 +72,52 @@ pigeon在运行时可能会依赖以下jar包，如果有必要，需要应用�
 		<version>2.5-20081211</version>
 		</dependency>
 
+### 准备工作
+
+如果是在外部公司使用开源版本pigeon，需要关注此章节，进行一些准备工作：
+
+1、下载代码后，通过maven构建项目：
+
+git clone git地址 pigeon-parent
+
+cd pigeon-parent
+
+mvn clean install -DskipTests
+
+2、环境准备
+
+a、zookeeper安装
+pigeon内部使用zookeeper作为注册中心，需要安装好zookeeper集群。
+
+b、配置pigeon的zookeeper集群地址
+如未使用大众点评配置框架lion，需在应用代码resources/config/pigeon.properties里（也可以在绝对路径/data/webapps/config/pigeon.properties里）设置注册中心zookeeper地址：
+
+pigeon.registry.address=10.1.1.1:2181,10.1.1.2:2181,10.1.1.3:2181,10.1.1.4:2181,10.1.1.5:2181
+
+
+c、配置摘除服务的脚本：
+
+由于pigeon内部是在zookeeper里使用持久化节点，如果非正常关闭jvm，不会从zookeeper集群里摘除相应的本机服务的ip、port，需要在关闭jvm脚本里（比如tomcat的shutdown.sh脚本）加入以下调用：
+
+/usr/bin/curl -s --connect-timeout 5  --speed-time 6 --speed-limit 1 "http://127.0.0.1:4080/services.unpublish"
+
+该脚本内部会等待3秒，如果成功会返回ok，等该脚本执行成功再关闭jvm
+
+d、应用名称配置：
+
+在应用代码resources/META-INF/app.properties文件里设置
+
+app.name=xxx
+
+代表此应用名称为xxx，定义应用名称是基于规范应用的考虑
+
+
 ### 快速入门
 
 本文档相关示例代码可以参考pigeon-demo模块：
 
-1、下载代码后，通过maven构建项目：
-mvn clean install -DskipTests
 
-2、配置环境准备
-
-pigeon配置：
-pigeon内部使用zookeeper作为注册中心，如未使用大众点评配置框架lion，需在应用代码resources/config/pigeon.properties里（也可以在绝对路径/data/webapps/config/pigeon.properties里）设置注册中心zookeeper地址：
-pigeon.registry.address=10.1.1.1:2181,10.1.1.2:2181,10.1.1.3:2181,10.1.1.4:2181,10.1.1.5:2181
-
-应用名称配置：
-在应用代码resources/META-INF/app.properties文件里设置
-app.name=xxx
-代表此应用名称为xxx，定义应用名称是基于规范应用的考虑
-
-3、定义服务
+1、定义服务
 
 定义服务接口: (该接口需单独打包，在服务提供方和调用方共享)
 
@@ -106,7 +140,7 @@ EchoServiceImpl.java
 			}
 		}
 
-4、服务提供者
+2、服务提供者
 
 这里先介绍传统spring方式，后边章节会介绍annotation方式、spring schema定义方式、api方式。
 
@@ -145,7 +179,7 @@ Provider.java
 		}
 
 
-5、服务调用者
+3、服务调用者
 
 这里先介绍传统spring方式，后边章节会介绍annotation方式、spring schema定义方式、api方式。
 
@@ -1045,6 +1079,13 @@ com.dianping.pigeon.governor.service.RegistrationInfoService
 		}
 
 
+### 泳道
+泳道用于机器级别的隔离，泳道配置在机器的/data/webapps/appenv里，例如：
+deployenv=alpha
+zkserver=alpha.lion.dp:2182
+swimlane=tg
 
+swimlane代表tg这个泳道，对于pigeon来说，如果一个service的机器定义了swimlane为tg，那么这个机器只能是客户端同样为tg泳道的机器能够调用
+对于客户端来说，假设配置了泳道为tg，那么这个客户端机器调用远程服务时，会优先选择服务端泳道配置同样为tg的机器，如果tg泳道的机器不可用或不存在，才会调用其他未配置泳道的机器
 
 

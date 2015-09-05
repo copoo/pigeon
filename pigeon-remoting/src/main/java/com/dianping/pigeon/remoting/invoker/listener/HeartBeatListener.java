@@ -38,15 +38,14 @@ import com.dianping.pigeon.remoting.invoker.domain.ConnectInfo;
 import com.dianping.pigeon.remoting.invoker.util.InvokerUtils;
 import com.dianping.pigeon.remoting.provider.ProviderBootStrap;
 import com.dianping.pigeon.remoting.provider.Server;
-import com.dianping.pigeon.util.NetUtils;
 
 public class HeartBeatListener implements Runnable, ClusterListener {
 
 	private static final Logger logger = LoggerLoader.getLogger(HeartBeatListener.class);
 
-	public static final String HEART_TASK_SERVICE = "http://service.dianping.com/piegonService/heartTaskService";
+	public static final String HEART_TASK_SERVICE = "HeartbeatService/";
 
-	public static final String HEART_TASK_METHOD = "heartBeat";
+	public static final String HEART_TASK_METHOD = "heartbeat";
 
 	private Map<String, List<Client>> workingClients;
 
@@ -228,8 +227,8 @@ public class HeartBeatListener implements Runnable, ClusterListener {
 	}
 
 	private InvocationRequest createHeartRequest(Client client) {
-		InvocationRequest request = new DefaultRequest(HEART_TASK_SERVICE, HEART_TASK_METHOD, null,
-				SerializerFactory.SERIALIZE_HESSIAN, Constants.MESSAGE_TYPE_HEART, heartBeatTimeout, null);
+		InvocationRequest request = new DefaultRequest(HEART_TASK_SERVICE + client.getAddress(), HEART_TASK_METHOD,
+				null, SerializerFactory.SERIALIZE_HESSIAN, Constants.MESSAGE_TYPE_HEART, heartBeatTimeout, null);
 		request.setSequence(generateHeartSeq(client));
 		request.setCreateMillisTime(System.currentTimeMillis());
 		request.setCallType(Constants.CALLTYPE_REPLY);

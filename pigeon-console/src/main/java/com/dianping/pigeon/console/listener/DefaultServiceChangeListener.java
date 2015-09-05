@@ -87,7 +87,7 @@ public class DefaultServiceChangeListener implements ServiceChangeListener {
 			group = Constants.DEFAULT_GROUP;
 		}
 		StringBuilder url = new StringBuilder();
-		url.append("http://").append(managerAddress).append("/service/").append(action);
+		url.append("http://").append(managerAddress).append(action);
 		url.append("?env=").append(env).append("&id=3&updatezk=false&service=");
 		url.append(providerConfig.getUrl());
 		url.append("&group=").append(group);
